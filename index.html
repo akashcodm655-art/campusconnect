@@ -277,10 +277,17 @@
 
         const formattedPhone = '+91' + digits;
 
-        // Setup invisible reCAPTCHA
+        // 🔥 FIX: Safely destroy the old reCAPTCHA before creating a new one
         if (window.recaptchaVerifier) {
-          window.recaptchaVerifier.clear();
+          try {
+            window.recaptchaVerifier.clear();
+          } catch (e) {
+            console.warn("Could not clear previous reCAPTCHA:", e);
+          }
+          window.recaptchaVerifier = null;
         }
+
+        // Setup invisible reCAPTCHA
         window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
           size: 'invisible',
           callback: () => { /* reCAPTCHA solved */ }
@@ -296,7 +303,14 @@
         App.isLoading = false;
         render();
         showToast(error.message || 'Failed to send OTP. Try again.', 'error');
-        window.recaptchaVerifier = null;
+        
+        // 🔥 FIX: Reset reCAPTCHA on failure so the user can try again without errors
+        if (window.recaptchaVerifier) {
+          try {
+            window.recaptchaVerifier.clear();
+          } catch (e) {}
+          window.recaptchaVerifier = null;
+        }
       }
     },
 
@@ -875,7 +889,7 @@
         <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
           <div class="w-full max-w-sm">
             <!-- Back button -->
-            <button onclick="navigateTo('login')" class="text-cc-muted hover:text-cc-text mb-8 transition-colors">
+            <button onclick="handleResendOTP()" class="text-cc-muted hover:text-cc-text mb-8 transition-colors">
               <i class="fas fa-arrow-left mr-2"></i> Back
             </button>
 
@@ -1514,8 +1528,13 @@
   }
 
   function handleResendOTP() {
-    const phone = document.getElementById('phone-input');
-    // Go back to login page to re-enter and resend
+    // 🔥 FIX: Destroy the old reCAPTCHA before going back to the login screen
+    if (window.recaptchaVerifier) {
+      try {
+        window.recaptchaVerifier.clear();
+      } catch (e) {}
+      window.recaptchaVerifier = null;
+    }
     navigateTo('login');
     showToast('Please send OTP again', 'info');
   }
