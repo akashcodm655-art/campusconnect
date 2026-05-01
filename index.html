@@ -1,0 +1,1699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CampusConnect — Find Your People</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <!-- Firebase SDK (compat version — easiest for beginners) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- Tailwind Custom Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'cc-bg':       '#0D1117',
+            'cc-surface':  '#161B22',
+            'cc-elevated': '#1C2333',
+            'cc-border':   '#30363D',
+            'cc-text':     '#E6EDF3',
+            'cc-muted':    '#8B949E',
+            'cc-accent':   '#FF6B35',
+            'cc-teal':     '#00D4AA',
+            'cc-yellow':   '#FFD166',
+            'cc-red':      '#F85149',
+            'cc-green':    '#3FB950',
+          },
+          fontFamily: {
+            heading: ['"Space Grotesk"', 'sans-serif'],
+            body:    ['"DM Sans"', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Base resets */
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: #0D1117; color: #E6EDF3; font-family: 'DM Sans', sans-serif; }
+    input, select, textarea, button { font-family: inherit; }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #161B22; }
+    ::-webkit-scrollbar-thumb { background: #30363D; border-radius: 3px; }
+
+    /* OTP input styling */
+    .otp-digit {
+      width: 48px; height: 56px; text-align: center;
+      font-size: 1.5rem; font-weight: 700;
+      background: #1C2333; border: 2px solid #30363D;
+      border-radius: 12px; color: #E6EDF3;
+      outline: none; transition: border-color 0.2s;
+    }
+    .otp-digit:focus { border-color: #FF6B35; }
+
+    /* Interest chip */
+    .interest-chip {
+      display: inline-block; padding: 6px 14px;
+      border-radius: 20px; font-size: 0.8rem; font-weight: 500;
+      border: 1.5px solid #30363D; color: #8B949E;
+      cursor: pointer; transition: all 0.2s; user-select: none;
+    }
+    .interest-chip:hover { border-color: #FF6B35; color: #E6EDF3; }
+    .interest-chip.selected {
+      background: rgba(255,107,53,0.15); border-color: #FF6B35; color: #FF6B35;
+    }
+
+    /* Filter chip (smaller) */
+    .filter-chip {
+      display: inline-block; padding: 5px 12px;
+      border-radius: 16px; font-size: 0.75rem; font-weight: 500;
+      border: 1.5px solid #30363D; color: #8B949E;
+      cursor: pointer; transition: all 0.2s; user-select: none;
+    }
+    .filter-chip:hover { border-color: #00D4AA; color: #E6EDF3; }
+    .filter-chip.selected {
+      background: rgba(0,212,170,0.12); border-color: #00D4AA; color: #00D4AA;
+    }
+
+    /* Toast animation */
+    @keyframes slideIn { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+    @keyframes slideOut { from { transform: translateX(0); opacity:1; } to { transform: translateX(100%); opacity:0; } }
+    .toast-in { animation: slideIn 0.3s ease-out; }
+    .toast-out { animation: slideOut 0.3s ease-in forwards; }
+
+    /* Loading spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 24px; height: 24px; border: 3px solid #30363D;
+      border-top-color: #FF6B35; border-radius: 50%;
+      animation: spin 0.7s linear infinite; display: inline-block;
+    }
+
+    /* Pulse glow for CTA */
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,53,0.4); }
+      50%      { box-shadow: 0 0 20px 4px rgba(255,107,53,0.15); }
+    }
+    .pulse-glow { animation: pulseGlow 2.5s ease-in-out infinite; }
+
+    /* Page transition */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    .fade-up { animation: fadeUp 0.35s ease-out; }
+
+    /* Background mesh */
+    .bg-mesh {
+      background:
+        radial-gradient(ellipse 60% 50% at 10% 90%, rgba(255,107,53,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 90% 10%, rgba(0,212,170,0.06) 0%, transparent 60%),
+        #0D1117;
+    }
+
+    /* Bottom nav */
+    .nav-item { transition: color 0.2s; }
+    .nav-item.active { color: #FF6B35; }
+    .nav-item.active .nav-dot { opacity: 1; }
+    .nav-dot {
+      width: 4px; height: 4px; border-radius: 50%;
+      background: #FF6B35; opacity: 0; transition: opacity 0.2s;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+
+<body class="bg-cc-bg text-cc-text font-body min-h-screen">
+  <!-- Main App Container (mobile-first, centered on desktop) -->
+  <div id="app" class="max-w-lg mx-auto min-h-screen relative bg-mesh"></div>
+
+  <!-- Hidden container for Firebase reCAPTCHA -->
+  <div id="recaptcha-container"></div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[999] flex flex-col gap-2 max-w-sm"></div>
+
+  <script>
+  // ================================================================
+  //  CAMPUSCONNECT — College Student Networking MVP
+  //  Built with vanilla JS + Firebase (Auth + Firestore)
+  // ================================================================
+
+  // ================================================================
+  //  1. CONSTANTS — App configuration data
+  // ================================================================
+  const ALL_INTERESTS = [
+    'Cricket','Football','Basketball','Badminton','Table Tennis','Volleyball','Swimming',
+    'Music','Singing','Guitar','Dancing','Drawing','Painting','Photography',
+    'Coding','Gaming','Chess','Web Design','Robotics',
+    'Reading','Writing','Blogging','Cooking','Travel','Hiking','Yoga','Gym',
+    'Theatre','Debate','Volunteering','MUN','Entrepreneurship'
+  ];
+
+  const DEPARTMENTS = ['B.Com','B.Sc','B.A','B.Tech','BBA','BCA','M.Com','M.Sc','M.A','MBA','MCA','Other'];
+  const YEARS       = ['FY','SY','TY'];
+  const GENDERS     = ['Male','Female','Non-Binary','Prefer not to say'];
+
+  // Interest categories for grouped display
+  const INTEREST_CATEGORIES = [
+    { name:'Sports',  icon:'fa-futbol',         items:['Cricket','Football','Basketball','Badminton','Table Tennis','Volleyball','Swimming'] },
+    { name:'Arts',    icon:'fa-palette',         items:['Music','Singing','Guitar','Dancing','Drawing','Painting','Photography'] },
+    { name:'Tech',    icon:'fa-laptop-code',     items:['Coding','Gaming','Chess','Web Design','Robotics'] },
+    { name:'Lifestyle',icon:'fa-heart',          items:['Reading','Writing','Blogging','Cooking','Travel','Hiking','Yoga','Gym'] },
+    { name:'Other',   icon:'fa-lightbulb',       items:['Theatre','Debate','Volunteering','MUN','Entrepreneurship'] },
+  ];
+
+  // ================================================================
+  //  2. FIREBASE CONFIGURATION
+  //     👉 REPLACE these values with your own Firebase project config
+  //     Get them from: Firebase Console → Project Settings → Web App
+  // ================================================================
+  const firebaseConfig = {
+    apiKey:            "YOUR_API_KEY",
+    authDomain:        "YOUR_PROJECT.firebaseapp.com",
+    projectId:         "YOUR_PROJECT_ID",
+    storageBucket:     "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId:             "YOUR_APP_ID"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
+
+  // ================================================================
+  //  3. APP STATE — Central state object
+  // ================================================================
+  const App = {
+    currentUser:        null,   // Firebase auth user object
+    userProfile:        null,   // Firestore profile data
+    currentPage:        'loading', // Current view
+    confirmationResult: null,   // Phone auth confirmation
+    isLoading:          false,
+    savedUserIds:       [],     // Array of saved user UIDs
+    savedUsersData:     [],     // Full data of saved users
+    contactRequests:    [],     // Contact request objects
+    searchResults:      [],     // Search result user objects
+    editMode:           false,  // Profile edit mode
+  };
+
+  // Search filter state
+  const Filters = {
+    year:       [],
+    gender:     [],
+    department: [],
+    interests:  [],
+  };
+
+  // ================================================================
+  //  4. TOAST NOTIFICATION SYSTEM
+  // ================================================================
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const colors = {
+      success: 'bg-cc-green/90 text-white',
+      error:   'bg-cc-red/90 text-white',
+      info:    'bg-cc-surface text-cc-text border border-cc-border',
+    };
+    const icons = {
+      success: 'fa-check-circle',
+      error:   'fa-exclamation-circle',
+      info:    'fa-info-circle',
+    };
+    const toast = document.createElement('div');
+    toast.className = `px-4 py-3 rounded-xl text-sm font-medium shadow-lg toast-in flex items-center gap-2 ${colors[type] || colors.info}`;
+    toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i><span>${message}</span>`;
+    container.appendChild(toast);
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+      toast.classList.remove('toast-in');
+      toast.classList.add('toast-out');
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  // ================================================================
+  //  5. NAVIGATION
+  // ================================================================
+  function navigateTo(page) {
+    App.currentPage = page;
+    render();
+  }
+
+  // ================================================================
+  //  6. AUTH MODULE
+  // ================================================================
+  const Auth = {
+    // Send OTP to the given phone number
+    async sendOTP(phoneNumber) {
+      try {
+        App.isLoading = true;
+        render();
+
+        // Clean phone number — digits only
+        const digits = phoneNumber.replace(/\D/g, '');
+
+        // Validate: must be 10 digits (India)
+        if (digits.length !== 10) {
+          App.isLoading = false;
+          render();
+          showToast('Please enter a valid 10-digit phone number', 'error');
+          return;
+        }
+
+        const formattedPhone = '+91' + digits;
+
+        // Setup invisible reCAPTCHA
+        if (window.recaptchaVerifier) {
+          window.recaptchaVerifier.clear();
+        }
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+          size: 'invisible',
+          callback: () => { /* reCAPTCHA solved */ }
+        });
+
+        // Send OTP
+        App.confirmationResult = await auth.signInWithPhoneNumber(formattedPhone, window.recaptchaVerifier);
+        App.isLoading = false;
+        App.currentPage = 'otp';
+        render();
+        showToast('OTP sent successfully!', 'success');
+      } catch (error) {
+        App.isLoading = false;
+        render();
+        showToast(error.message || 'Failed to send OTP. Try again.', 'error');
+        window.recaptchaVerifier = null;
+      }
+    },
+
+    // Verify the OTP entered by user
+    async verifyOTP(code) {
+      try {
+        App.isLoading = true;
+        render();
+
+        if (!App.confirmationResult) {
+          throw new Error('No OTP request found. Please try again.');
+        }
+
+        const result = await App.confirmationResult.confirm(code);
+        App.currentUser = result.user;
+
+        // Check if profile already exists
+        const profileDoc = await db.collection('users').doc(result.user.uid).get();
+        if (profileDoc.exists && profileDoc.data().profileComplete) {
+          App.userProfile = profileDoc.data();
+          App.currentPage = 'home';
+          // Load saved profiles and contact requests
+          await SavedModule.load();
+          await ContactModule.load();
+        } else {
+          App.currentPage = 'profile-setup';
+        }
+
+        App.isLoading = false;
+        App.confirmationResult = null;
+        render();
+        showToast('Verified! Welcome to CampusConnect.', 'success');
+      } catch (error) {
+        App.isLoading = false;
+        render();
+        showToast('Invalid OTP. Please try again.', 'error');
+      }
+    },
+
+    // Logout
+    async logout() {
+      try {
+        await auth.signOut();
+        App.currentUser = null;
+        App.userProfile = null;
+        App.savedUserIds = [];
+        App.savedUsersData = [];
+        App.contactRequests = [];
+        App.searchResults = [];
+        App.confirmationResult = null;
+        App.currentPage = 'login';
+        render();
+      } catch (error) {
+        showToast('Logout failed', 'error');
+      }
+    }
+  };
+
+  // Listen for auth state changes (handles page refresh)
+  auth.onAuthStateChanged(async (user) => {
+    if (user) {
+      App.currentUser = user;
+      try {
+        const profileDoc = await db.collection('users').doc(user.uid).get();
+        if (profileDoc.exists && profileDoc.data().profileComplete) {
+          App.userProfile = profileDoc.data();
+          App.currentPage = 'home';
+          await SavedModule.load();
+          await ContactModule.load();
+        } else {
+          App.currentPage = 'profile-setup';
+        }
+      } catch (e) {
+        App.currentPage = 'profile-setup';
+      }
+    } else {
+      App.currentUser = null;
+      App.userProfile = null;
+      App.currentPage = 'login';
+    }
+    render();
+  });
+
+  // ================================================================
+  //  7. PROFILE MODULE
+  // ================================================================
+  const ProfileModule = {
+    // Create a new profile (first-time setup)
+    async create(data) {
+      try {
+        App.isLoading = true;
+        render();
+
+        // Validate required fields
+        if (!data.name || !data.year || !data.department || !data.gender) {
+          App.isLoading = false;
+          render();
+          showToast('Please fill all required fields', 'error');
+          return;
+        }
+        if (!data.interests || data.interests.length === 0) {
+          App.isLoading = false;
+          render();
+          showToast('Please select at least one interest', 'error');
+          return;
+        }
+
+        const userId = App.currentUser.uid;
+        await db.collection('users').doc(userId).set({
+          name:           data.name,
+          year:           data.year,
+          department:     data.department,
+          gender:         data.gender,
+          interests:      data.interests,
+          phone:          App.currentUser.phoneNumber,
+          profileComplete: true,
+          createdAt:      firebase.firestore.FieldValue.serverTimestamp(),
+        });
+
+        App.userProfile = {
+          name: data.name, year: data.year, department: data.department,
+          gender: data.gender, interests: data.interests,
+          phone: App.currentUser.phoneNumber, profileComplete: true,
+        };
+        App.currentPage = 'home';
+        App.isLoading = false;
+        render();
+        showToast('Profile created! You are all set.', 'success');
+      } catch (error) {
+        App.isLoading = false;
+        render();
+        showToast('Failed to create profile: ' + error.message, 'error');
+      }
+    },
+
+    // Update existing profile
+    async update(data) {
+      try {
+        const userId = App.currentUser.uid;
+        await db.collection('users').doc(userId).update(data);
+        App.userProfile = { ...App.userProfile, ...data };
+        App.editMode = false;
+        render();
+        showToast('Profile updated!', 'success');
+      } catch (error) {
+        showToast('Failed to update profile', 'error');
+      }
+    }
+  };
+
+  // ================================================================
+  //  8. SEARCH MODULE
+  // ================================================================
+  const SearchModule = {
+    async execute() {
+      try {
+        App.isLoading = true;
+        render();
+
+        // Fetch all users with complete profiles
+        const snapshot = await db.collection('users')
+          .where('profileComplete', '==', true)
+          .get();
+
+        let results = [];
+        snapshot.forEach(doc => {
+          // Exclude current user from results
+          if (doc.id !== App.currentUser.uid) {
+            results.push({ id: doc.id, ...doc.data() });
+          }
+        });
+
+        // Client-side filtering based on selected filters
+        if (Filters.year.length > 0) {
+          results = results.filter(u => Filters.year.includes(u.year));
+        }
+        if (Filters.gender.length > 0) {
+          results = results.filter(u => Filters.gender.includes(u.gender));
+        }
+        if (Filters.department.length > 0) {
+          results = results.filter(u => Filters.department.includes(u.department));
+        }
+        if (Filters.interests.length > 0) {
+          results = results.filter(u =>
+            u.interests && Filters.interests.some(i => u.interests.includes(i))
+          );
+        }
+
+        App.searchResults = results;
+        App.isLoading = false;
+        App.currentPage = 'search-results';
+        render();
+      } catch (error) {
+        App.isLoading = false;
+        render();
+        showToast('Search failed: ' + error.message, 'error');
+      }
+    }
+  };
+
+  // ================================================================
+  //  9. SAVED PROFILES MODULE
+  // ================================================================
+  const SavedModule = {
+    // Save a user profile
+    async save(targetUserId) {
+      try {
+        // Prevent duplicate saves
+        if (App.savedUserIds.includes(targetUserId)) return;
+
+        await db.collection('savedProfiles').add({
+          fromUserId: App.currentUser.uid,
+          toUserId:   targetUserId,
+          savedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        App.savedUserIds.push(targetUserId);
+
+        // Fetch the saved user's data for display
+        const doc = await db.collection('users').doc(targetUserId).get();
+        if (doc.exists) {
+          App.savedUsersData.push({ id: doc.id, ...doc.data() });
+        }
+        render();
+        showToast('Profile saved!', 'success');
+      } catch (error) {
+        showToast('Failed to save profile', 'error');
+      }
+    },
+
+    // Unsave a user profile
+    async unsave(targetUserId) {
+      try {
+        const snapshot = await db.collection('savedProfiles')
+          .where('fromUserId', '==', App.currentUser.uid)
+          .where('toUserId',   '==', targetUserId)
+          .get();
+
+        const batch = db.batch();
+        snapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+
+        App.savedUserIds   = App.savedUserIds.filter(id => id !== targetUserId);
+        App.savedUsersData = App.savedUsersData.filter(u => u.id !== targetUserId);
+        render();
+        showToast('Profile unsaved', 'success');
+      } catch (error) {
+        showToast('Failed to unsave', 'error');
+      }
+    },
+
+    // Load all saved profiles for current user
+    async load() {
+      try {
+        const snapshot = await db.collection('savedProfiles')
+          .where('fromUserId', '==', App.currentUser.uid)
+          .get();
+
+        App.savedUserIds   = [];
+        App.savedUsersData = [];
+        const userIds = [];
+
+        snapshot.forEach(doc => {
+          userIds.push(doc.data().toUserId);
+        });
+        App.savedUserIds = userIds;
+
+        // Fetch full user data for each saved profile
+        for (const uid of userIds) {
+          const doc = await db.collection('users').doc(uid).get();
+          if (doc.exists) {
+            App.savedUsersData.push({ id: doc.id, ...doc.data() });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load saved profiles:', error);
+      }
+    },
+
+    isSaved(userId) {
+      return App.savedUserIds.includes(userId);
+    }
+  };
+
+  // ================================================================
+  //  10. CONTACT REQUEST MODULE
+  // ================================================================
+  const ContactModule = {
+    // Send a contact request
+    async sendRequest(targetUserId, targetUserName) {
+      try {
+        // Prevent duplicate pending requests
+        const existing = App.contactRequests.find(
+          r => r.fromUserId === App.currentUser.uid && r.toUserId === targetUserId && r.status === 'pending'
+        );
+        if (existing) {
+          showToast('Request already sent', 'info');
+          return;
+        }
+
+        await db.collection('contactRequests').add({
+          fromUserId:   App.currentUser.uid,
+          fromUserName: App.userProfile.name,
+          toUserId:     targetUserId,
+          toUserName:   targetUserName,
+          status:       'pending',
+          createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Update local state
+        App.contactRequests.push({
+          fromUserId: App.currentUser.uid, fromUserName: App.userProfile.name,
+          toUserId: targetUserId, toUserName: targetUserName,
+          status: 'pending', type: 'sent'
+        });
+
+        render();
+        showToast('Contact request sent!', 'success');
+      } catch (error) {
+        showToast('Failed to send request', 'error');
+      }
+    },
+
+    // Accept a received request
+    async acceptRequest(requestId) {
+      try {
+        await db.collection('contactRequests').doc(requestId).update({ status: 'accepted' });
+        // Update local state
+        const req = App.contactRequests.find(r => r.id === requestId);
+        if (req) req.status = 'accepted';
+        render();
+        showToast('Request accepted! Contact info is now visible.', 'success');
+      } catch (error) {
+        showToast('Failed to accept request', 'error');
+      }
+    },
+
+    // Decline a received request
+    async declineRequest(requestId) {
+      try {
+        await db.collection('contactRequests').doc(requestId).update({ status: 'declined' });
+        const req = App.contactRequests.find(r => r.id === requestId);
+        if (req) req.status = 'declined';
+        render();
+        showToast('Request declined', 'info');
+      } catch (error) {
+        showToast('Failed to decline request', 'error');
+      }
+    },
+
+    // Load all contact requests (sent + received)
+    async load() {
+      try {
+        App.contactRequests = [];
+
+        // Received requests (others sent to me)
+        const received = await db.collection('contactRequests')
+          .where('toUserId', '==', App.currentUser.uid)
+          .get();
+        received.forEach(doc => {
+          App.contactRequests.push({ id: doc.id, ...doc.data(), type: 'received' });
+        });
+
+        // Sent requests (I sent to others)
+        const sent = await db.collection('contactRequests')
+          .where('fromUserId', '==', App.currentUser.uid)
+          .get();
+        sent.forEach(doc => {
+          App.contactRequests.push({ id: doc.id, ...doc.data(), type: 'sent' });
+        });
+      } catch (error) {
+        console.error('Failed to load contact requests:', error);
+      }
+    },
+
+    // Check if phone number should be visible for a given user
+    canSeePhone(userId) {
+      return App.contactRequests.some(r =>
+        r.status === 'accepted' &&
+        ((r.fromUserId === App.currentUser.uid && r.toUserId === userId) ||
+         (r.fromUserId === userId && r.toUserId === App.currentUser.uid))
+      );
+    },
+
+    // Check if there's a pending request from me to this user
+    hasPendingSent(userId) {
+      return App.contactRequests.some(r =>
+        r.status === 'pending' &&
+        r.fromUserId === App.currentUser.uid &&
+        r.toUserId === userId
+      );
+    },
+
+    // Check if there's an accepted request between us
+    hasAccepted(userId) {
+      return App.contactRequests.some(r =>
+        r.status === 'accepted' &&
+        ((r.fromUserId === App.currentUser.uid && r.toUserId === userId) ||
+         (r.fromUserId === userId && r.toUserId === App.currentUser.uid))
+      );
+    }
+  };
+
+  // ================================================================
+  //  11. UI — REUSABLE COMPONENTS
+  // ================================================================
+
+  // Bottom navigation bar (shown on main app pages)
+  function renderBottomNav(active) {
+    const items = [
+      { id:'home',     icon:'fa-house',      label:'Home'     },
+      { id:'search',   icon:'fa-magnifying-glass', label:'Search'   },
+      { id:'saved',    icon:'fa-bookmark',   label:'Saved'    },
+      { id:'requests', icon:'fa-handshake',  label:'Requests' },
+      { id:'profile',  icon:'fa-user',       label:'Profile'  },
+    ];
+    return `
+      <nav class="fixed bottom-0 left-0 right-0 bg-cc-surface/95 backdrop-blur-lg border-t border-cc-border z-50">
+        <div class="max-w-lg mx-auto flex justify-around py-2">
+          ${items.map(item => `
+            <button onclick="navigateTo('${item.id}')"
+              class="nav-item flex flex-col items-center gap-0.5 px-3 py-1 ${active===item.id?'active':'text-cc-muted'}">
+              <i class="fas ${item.icon} text-lg"></i>
+              <span class="text-[10px] font-medium">${item.label}</span>
+              <div class="nav-dot"></div>
+            </button>
+          `).join('')}
+        </div>
+      </nav>
+    `;
+  }
+
+  // User profile card (used in search results and saved list)
+  function renderUserCard(user, showActions = true) {
+    const isSaved    = SavedModule.isSaved(user.id);
+    const canSee     = ContactModule.canSeePhone(user.id);
+    const hasPending = ContactModule.hasPendingSent(user.id);
+    const hasAccept  = ContactModule.hasAccepted(user.id);
+
+    // Generate a warm gradient based on user name for avatar
+    const hue = user.name ? (user.name.charCodeAt(0) * 7 + user.name.charCodeAt(user.name.length-1) * 13) % 360 : 30;
+
+    return `
+      <div class="bg-cc-surface border border-cc-border rounded-2xl p-4 mb-3 fade-up">
+        <div class="flex items-start gap-3">
+          <!-- Avatar -->
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+               style="background: hsl(${hue}, 70%, 25%);">
+            <span class="text-lg font-bold" style="color: hsl(${hue}, 80%, 70%);">
+              ${user.name ? user.name.charAt(0).toUpperCase() : '?'}
+            </span>
+          </div>
+          <!-- Info -->
+          <div class="flex-1 min-w-0">
+            <h3 class="font-semibold text-cc-text truncate">${user.name || 'Unknown'}</h3>
+            <p class="text-sm text-cc-muted">${user.year} &middot; ${user.department} &middot; ${user.gender}</p>
+            ${canSee ? `
+              <p class="text-sm text-cc-teal mt-1 font-medium">
+                <i class="fas fa-phone text-xs"></i> ${user.phone || 'N/A'}
+              </p>
+            ` : ''}
+          </div>
+        </div>
+        <!-- Interest tags -->
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          ${(user.interests || []).map(i =>
+            `<span class="text-xs bg-cc-accent/10 text-cc-accent px-2 py-0.5 rounded-full">${i}</span>`
+          ).join('')}
+        </div>
+        <!-- Action buttons -->
+        ${showActions ? `
+          <div class="flex gap-2 mt-3">
+            <button onclick="handleToggleSave('${user.id}')"
+              class="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all
+                ${isSaved
+                  ? 'bg-cc-accent text-white'
+                  : 'bg-cc-elevated text-cc-muted border border-cc-border hover:border-cc-accent hover:text-cc-accent'}">
+              <i class="fas fa-bookmark mr-1"></i> ${isSaved ? 'Saved' : 'Save'}
+            </button>
+            ${hasAccept
+              ? `<span class="flex-1 py-2.5 rounded-xl text-sm font-medium bg-cc-teal/10 text-cc-teal text-center">
+                   <i class="fas fa-check-circle mr-1"></i> Connected
+                 </span>`
+              : hasPending
+                ? `<span class="flex-1 py-2.5 rounded-xl text-sm font-medium bg-cc-elevated text-cc-muted text-center border border-cc-border">
+                     <i class="fas fa-clock mr-1"></i> Sent
+                   </span>`
+                : `<button onclick="handleRequestContact('${user.id}','${(user.name||'').replace(/'/g,"\\'")}')"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-medium bg-cc-teal/10 text-cc-teal border border-cc-teal/30 hover:bg-cc-teal/20 transition-all">
+                    <i class="fas fa-paper-plane mr-1"></i> Request Contact
+                  </button>`
+            }
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Loading overlay
+  function renderLoading() {
+    return `
+      <div class="fixed inset-0 bg-cc-bg/80 backdrop-blur-sm z-[100] flex items-center justify-center">
+        <div class="text-center">
+          <div class="spinner w-10 h-10 mx-auto mb-3" style="border-width:3px;"></div>
+          <p class="text-cc-muted text-sm">Loading...</p>
+        </div>
+      </div>
+    `;
+  }
+
+  // ================================================================
+  //  12. UI — PAGE RENDERERS
+  // ================================================================
+
+  // ---------- LOADING SCREEN ----------
+  function renderLoadingPage() {
+    return `
+      <div class="flex flex-col items-center justify-center min-h-screen bg-mesh">
+        <div class="w-20 h-20 bg-gradient-to-br from-cc-accent to-amber-400 rounded-2xl flex items-center justify-center mb-4 pulse-glow">
+          <i class="fas fa-users text-3xl text-white"></i>
+        </div>
+        <h1 class="text-2xl font-bold font-heading text-cc-text">CampusConnect</h1>
+        <div class="spinner mt-6"></div>
+      </div>
+    `;
+  }
+
+  // ---------- LOGIN PAGE ----------
+  function renderLoginPage() {
+    return `
+      <div class="flex flex-col min-h-screen bg-mesh">
+        <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
+          <!-- Branding -->
+          <div class="text-center mb-10">
+            <div class="w-20 h-20 bg-gradient-to-br from-cc-accent to-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-4 pulse-glow">
+              <i class="fas fa-users text-3xl text-white"></i>
+            </div>
+            <h1 class="text-3xl font-bold font-heading text-cc-text">CampusConnect</h1>
+            <p class="text-cc-muted mt-2">Find your people on campus</p>
+          </div>
+
+          <!-- Phone Input Card -->
+          <div class="w-full max-w-sm">
+            <div class="bg-cc-surface border border-cc-border rounded-2xl p-6">
+              <h2 class="text-lg font-semibold mb-1">Sign In</h2>
+              <p class="text-cc-muted text-sm mb-5">Enter your phone number to get started</p>
+
+              <label class="block text-sm font-medium text-cc-muted mb-1.5">Phone Number</label>
+              <div class="flex gap-2 items-center">
+                <div class="bg-cc-elevated border border-cc-border rounded-xl px-3 py-3 text-sm font-semibold text-cc-text shrink-0">
+                  +91
+                </div>
+                <input type="tel" id="phone-input" placeholder="Enter 10-digit number" maxlength="10"
+                  class="flex-1 bg-cc-elevated border border-cc-border rounded-xl px-4 py-3 text-cc-text placeholder-cc-muted/50 focus:border-cc-accent focus:outline-none transition-colors text-lg tracking-wider"
+                  onkeydown="if(event.key==='Enter') handleSendOTP()">
+              </div>
+
+              <button onclick="handleSendOTP()"
+                class="w-full mt-5 bg-gradient-to-r from-cc-accent to-amber-500 text-white font-semibold py-3.5 rounded-xl hover:opacity-90 transition-opacity active:scale-[0.98]">
+                Send OTP
+              </button>
+            </div>
+
+            <p class="text-center text-cc-muted text-xs mt-4">
+              By continuing, you agree to our Terms of Service and Privacy Policy
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------- OTP VERIFICATION PAGE ----------
+  function renderOTPPage() {
+    return `
+      <div class="flex flex-col min-h-screen bg-mesh">
+        <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
+          <div class="w-full max-w-sm">
+            <!-- Back button -->
+            <button onclick="navigateTo('login')" class="text-cc-muted hover:text-cc-text mb-8 transition-colors">
+              <i class="fas fa-arrow-left mr-2"></i> Back
+            </button>
+
+            <div class="bg-cc-surface border border-cc-border rounded-2xl p-6">
+              <div class="text-center mb-6">
+                <div class="w-14 h-14 bg-cc-accent/10 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <i class="fas fa-shield-halved text-2xl text-cc-accent"></i>
+                </div>
+                <h2 class="text-lg font-semibold">Verify OTP</h2>
+                <p class="text-cc-muted text-sm mt-1">Enter the 6-digit code sent to your phone</p>
+              </div>
+
+              <!-- 6-digit OTP inputs -->
+              <div class="flex justify-center gap-2 mb-6" id="otp-container">
+                ${[0,1,2,3,4,5].map(i => `
+                  <input type="tel" maxlength="1" class="otp-digit" id="otp-${i}"
+                    oninput="handleOtpInput(${i})"
+                    onkeydown="handleOtpKeydown(event, ${i})">
+                `).join('')}
+              </div>
+
+              <button onclick="handleVerifyOTP()"
+                class="w-full bg-gradient-to-r from-cc-accent to-amber-500 text-white font-semibold py-3.5 rounded-xl hover:opacity-90 transition-opacity active:scale-[0.98]">
+                Verify
+              </button>
+
+              <p class="text-center text-cc-muted text-xs mt-4">
+                Didn't receive the code? <button onclick="handleResendOTP()" class="text-cc-accent hover:underline">Resend OTP</button>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------- PROFILE SETUP PAGE ----------
+  function renderProfileSetupPage() {
+    const existing = App.userProfile || {};
+    const isEdit = App.editMode;
+
+    return `
+      <div class="flex flex-col min-h-screen bg-mesh">
+        <div class="flex-1 px-6 py-8 overflow-y-auto pb-8">
+          <div class="max-w-sm mx-auto">
+            <!-- Header -->
+            <div class="mb-6">
+              ${isEdit ? `
+                <button onclick="App.editMode=false;navigateTo('profile')" class="text-cc-muted hover:text-cc-text mb-4 transition-colors">
+                  <i class="fas fa-arrow-left mr-2"></i> Cancel
+                </button>
+              ` : ''}
+              <h1 class="text-2xl font-bold font-heading">
+                ${isEdit ? 'Edit Profile' : 'Create Your Profile'}
+              </h1>
+              <p class="text-cc-muted text-sm mt-1">
+                ${isEdit ? 'Update your information below' : 'Tell us about yourself so others can find you'}
+              </p>
+            </div>
+
+            <!-- Name -->
+            <div class="mb-5">
+              <label class="block text-sm font-medium text-cc-muted mb-1.5">Full Name <span class="text-cc-red">*</span></label>
+              <input type="text" id="profile-name" placeholder="Enter your full name"
+                value="${existing.name || ''}"
+                class="w-full bg-cc-surface border border-cc-border rounded-xl px-4 py-3 text-cc-text placeholder-cc-muted/50 focus:border-cc-accent focus:outline-none transition-colors">
+            </div>
+
+            <!-- Year -->
+            <div class="mb-5">
+              <label class="block text-sm font-medium text-cc-muted mb-2">Year <span class="text-cc-red">*</span></label>
+              <div class="flex gap-2">
+                ${YEARS.map(y => `
+                  <button onclick="selectYear('${y}')" id="year-${y}"
+                    class="flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all
+                    ${existing.year === y
+                      ? 'bg-cc-accent/15 border-cc-accent text-cc-accent'
+                      : 'bg-cc-surface border-cc-border text-cc-muted hover:border-cc-accent'}">
+                    ${y}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Department -->
+            <div class="mb-5">
+              <label class="block text-sm font-medium text-cc-muted mb-1.5">Department <span class="text-cc-red">*</span></label>
+              <select id="profile-dept"
+                class="w-full bg-cc-surface border border-cc-border rounded-xl px-4 py-3 text-cc-text focus:border-cc-accent focus:outline-none transition-colors appearance-none"
+                style="background-image: url('data:image/svg+xml;utf8,<svg fill=\"%238B949E\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path d=\"M7 10l5 5 5-5z\"/></svg>'); background-repeat: no-repeat; background-position: right 12px center; background-size: 20px;">
+                <option value="" class="bg-cc-surface">Select department</option>
+                ${DEPARTMENTS.map(d => `
+                  <option value="${d}" class="bg-cc-surface" ${existing.department===d?'selected':''}>${d}</option>
+                `).join('')}
+              </select>
+            </div>
+
+            <!-- Gender -->
+            <div class="mb-5">
+              <label class="block text-sm font-medium text-cc-muted mb-2">Gender <span class="text-cc-red">*</span></label>
+              <div class="flex flex-wrap gap-2">
+                ${GENDERS.map(g => `
+                  <button onclick="selectGender('${g}')" id="gender-${g.replace(/\s/g,'-')}"
+                    class="py-2 px-4 rounded-xl text-sm font-medium border transition-all
+                    ${existing.gender === g
+                      ? 'bg-cc-accent/15 border-cc-accent text-cc-accent'
+                      : 'bg-cc-surface border-cc-border text-cc-muted hover:border-cc-accent'}">
+                    ${g}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Interests -->
+            <div class="mb-8">
+              <label class="block text-sm font-medium text-cc-muted mb-3">
+                Interests <span class="text-cc-red">*</span>
+                <span class="text-xs text-cc-muted/60 ml-1">(select at least 1)</span>
+              </label>
+              ${INTEREST_CATEGORIES.map(cat => `
+                <div class="mb-3">
+                  <p class="text-xs font-semibold text-cc-muted/70 uppercase tracking-wider mb-1.5">
+                    <i class="fas ${cat.icon} mr-1"></i> ${cat.name}
+                  </p>
+                  <div class="flex flex-wrap gap-1.5">
+                    ${cat.items.map(item => `
+                      <span class="interest-chip ${(existing.interests||[]).includes(item)?'selected':''}"
+                        onclick="toggleInterest(this,'${item}')">${item}</span>
+                    `).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- Submit button -->
+            <button onclick="handleProfileSubmit(${isEdit})"
+              class="w-full bg-gradient-to-r from-cc-accent to-amber-500 text-white font-semibold py-3.5 rounded-xl hover:opacity-90 transition-opacity active:scale-[0.98] mb-4">
+              ${isEdit ? 'Save Changes' : 'Create Profile'}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------- DASHBOARD / HOME PAGE ----------
+  function renderHomePage() {
+    const name = App.userProfile ? App.userProfile.name.split(' ')[0] : 'there';
+    const savedCount = App.savedUsersData.length;
+    const pendingReceived = App.contactRequests.filter(r => r.type === 'received' && r.status === 'pending').length;
+
+    return `
+      <div class="min-h-screen bg-mesh pb-24">
+        <!-- Header -->
+        <div class="px-6 pt-8 pb-4">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <p class="text-cc-muted text-sm">Welcome back,</p>
+              <h1 class="text-2xl font-bold font-heading text-cc-text">${name}</h1>
+            </div>
+            <div class="relative">
+              <button onclick="navigateTo('requests')"
+                class="w-11 h-11 bg-cc-surface border border-cc-border rounded-xl flex items-center justify-center text-cc-muted hover:text-cc-accent transition-colors">
+                <i class="fas fa-bell"></i>
+              </button>
+              ${pendingReceived > 0 ? `
+                <span class="absolute -top-1 -right-1 w-5 h-5 bg-cc-red text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  ${pendingReceived}
+                </span>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- Profile Summary Card -->
+          <div class="bg-cc-surface border border-cc-border rounded-2xl p-4 mb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                   style="background: linear-gradient(135deg, rgba(255,107,53,0.2), rgba(0,212,170,0.2));">
+                <span class="text-lg font-bold text-cc-accent">${name.charAt(0).toUpperCase()}</span>
+              </div>
+              <div class="flex-1">
+                <p class="font-semibold text-cc-text">${App.userProfile.name}</p>
+                <p class="text-sm text-cc-muted">${App.userProfile.year} &middot; ${App.userProfile.department}</p>
+              </div>
+              <button onclick="navigateTo('profile')" class="text-cc-muted hover:text-cc-accent transition-colors">
+                <i class="fas fa-ellipsis-vertical"></i>
+              </button>
+            </div>
+            <div class="flex flex-wrap gap-1.5 mt-3">
+              ${(App.userProfile.interests || []).slice(0, 5).map(i =>
+                `<span class="text-xs bg-cc-accent/10 text-cc-accent px-2 py-0.5 rounded-full">${i}</span>`
+              ).join('')}
+              ${(App.userProfile.interests || []).length > 5
+                ? `<span class="text-xs text-cc-muted">+${App.userProfile.interests.length - 5} more</span>`
+                : ''}
+            </div>
+          </div>
+
+          <!-- Find Students CTA -->
+          <button onclick="navigateTo('search')"
+            class="w-full bg-gradient-to-r from-cc-accent to-amber-500 text-white font-semibold py-4 rounded-2xl hover:opacity-90 transition-opacity active:scale-[0.98] pulse-glow flex items-center justify-center gap-2 text-lg mb-6">
+            <i class="fas fa-magnifying-glass"></i> Find Students
+          </button>
+        </div>
+
+        <!-- Saved People Section -->
+        <div class="px-6">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold font-heading">Saved People</h2>
+            ${savedCount > 0 ? `
+              <button onclick="navigateTo('saved')" class="text-cc-accent text-sm font-medium hover:underline">
+                View All (${savedCount})
+              </button>
+            ` : ''}
+          </div>
+          ${savedCount > 0 ? `
+            <div class="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1" style="scrollbar-width:none;">
+              ${App.savedUsersData.slice(0, 6).map(user => {
+                const hue = user.name ? (user.name.charCodeAt(0)*7 + user.name.charCodeAt(user.name.length-1)*13) % 360 : 30;
+                return `
+                  <div class="shrink-0 w-28 bg-cc-surface border border-cc-border rounded-2xl p-3 text-center">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-2"
+                         style="background: hsl(${hue}, 70%, 25%);">
+                      <span class="text-sm font-bold" style="color: hsl(${hue}, 80%, 70%);">
+                        ${user.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <p class="text-xs font-semibold text-cc-text truncate">${user.name}</p>
+                    <p class="text-[10px] text-cc-muted">${user.year} &middot; ${user.department}</p>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          ` : `
+            <div class="bg-cc-surface border border-cc-border rounded-2xl p-6 text-center">
+              <i class="fas fa-bookmark text-3xl text-cc-muted/30 mb-2"></i>
+              <p class="text-cc-muted text-sm">No saved profiles yet</p>
+              <p class="text-cc-muted/60 text-xs mt-1">Search for students and save profiles you like</p>
+            </div>
+          `}
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="px-6 mt-6">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-cc-surface border border-cc-border rounded-2xl p-4 text-center">
+              <p class="text-2xl font-bold font-heading text-cc-accent">${savedCount}</p>
+              <p class="text-xs text-cc-muted mt-1">Saved Profiles</p>
+            </div>
+            <div class="bg-cc-surface border border-cc-border rounded-2xl p-4 text-center">
+              <p class="text-2xl font-bold font-heading text-cc-teal">
+                ${App.contactRequests.filter(r => r.status === 'accepted').length}
+              </p>
+              <p class="text-xs text-cc-muted mt-1">Connections</p>
+            </div>
+          </div>
+        </div>
+
+        ${renderBottomNav('home')}
+      </div>
+    `;
+  }
+
+  // ---------- SEARCH / FILTER PAGE ----------
+  function renderSearchPage() {
+    return `
+      <div class="min-h-screen bg-mesh pb-24">
+        <div class="px-6 pt-8 pb-4">
+          <h1 class="text-2xl font-bold font-heading mb-1">Search Students</h1>
+          <p class="text-cc-muted text-sm mb-6">Apply filters to find matching students</p>
+
+          <!-- Year Filter -->
+          <div class="mb-5">
+            <label class="block text-sm font-medium text-cc-muted mb-2">Year</label>
+            <div class="flex gap-2">
+              ${YEARS.map(y => `
+                <button onclick="toggleFilter('year','${y}')" id="filter-year-${y}"
+                  class="filter-chip ${Filters.year.includes(y) ? 'selected' : ''}">${y}</button>
+              `).join('')}
+              <button onclick="clearFilterCategory('year')"
+                class="filter-chip text-cc-red/60 border-cc-red/20 hover:border-cc-red/40 hover:text-cc-red/80"
+                style="display:${Filters.year.length?'inline-block':'none'}">
+                <i class="fas fa-xmark mr-1"></i>Clear
+              </button>
+            </div>
+          </div>
+
+          <!-- Gender Filter -->
+          <div class="mb-5">
+            <label class="block text-sm font-medium text-cc-muted mb-2">Gender</label>
+            <div class="flex flex-wrap gap-2">
+              ${GENDERS.map(g => `
+                <button onclick="toggleFilter('gender','${g}')" id="filter-gender-${g.replace(/\s/g,'-')}"
+                  class="filter-chip ${Filters.gender.includes(g) ? 'selected' : ''}">${g}</button>
+              `).join('')}
+              <button onclick="clearFilterCategory('gender')"
+                class="filter-chip text-cc-red/60 border-cc-red/20 hover:border-cc-red/40 hover:text-cc-red/80"
+                style="display:${Filters.gender.length?'inline-block':'none'}">
+                <i class="fas fa-xmark mr-1"></i>Clear
+              </button>
+            </div>
+          </div>
+
+          <!-- Department Filter -->
+          <div class="mb-5">
+            <label class="block text-sm font-medium text-cc-muted mb-2">Department</label>
+            <div class="flex flex-wrap gap-2">
+              ${DEPARTMENTS.map(d => `
+                <button onclick="toggleFilter('department','${d}')" id="filter-dept-${d.replace(/[^a-zA-Z]/g,'')}"
+                  class="filter-chip ${Filters.department.includes(d) ? 'selected' : ''}">${d}</button>
+              `).join('')}
+              <button onclick="clearFilterCategory('department')"
+                class="filter-chip text-cc-red/60 border-cc-red/20 hover:border-cc-red/40 hover:text-cc-red/80"
+                style="display:${Filters.department.length?'inline-block':'none'}">
+                <i class="fas fa-xmark mr-1"></i>Clear
+              </button>
+            </div>
+          </div>
+
+          <!-- Interests Filter -->
+          <div class="mb-6">
+            <label class="block text-sm font-medium text-cc-muted mb-3">Interests</label>
+            ${INTEREST_CATEGORIES.map(cat => `
+              <div class="mb-2">
+                <p class="text-[10px] font-semibold text-cc-muted/60 uppercase tracking-wider mb-1">
+                  <i class="fas ${cat.icon} mr-1"></i> ${cat.name}
+                </p>
+                <div class="flex flex-wrap gap-1">
+                  ${cat.items.map(item => `
+                    <span class="filter-chip text-[11px] ${Filters.interests.includes(item)?'selected':''}"
+                      onclick="toggleFilter('interests','${item}')">${item}</span>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex gap-3">
+            <button onclick="clearAllFilters()"
+              class="flex-1 py-3.5 rounded-xl text-sm font-medium bg-cc-surface text-cc-muted border border-cc-border hover:text-cc-text transition-colors">
+              Clear All
+            </button>
+            <button onclick="SearchModule.execute()"
+              class="flex-[2] py-3.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-cc-accent to-amber-500 text-white hover:opacity-90 transition-opacity active:scale-[0.98]">
+              <i class="fas fa-magnifying-glass mr-1"></i> Search
+            </button>
+          </div>
+        </div>
+
+        ${renderBottomNav('search')}
+      </div>
+    `;
+  }
+
+  // ---------- SEARCH RESULTS PAGE ----------
+  function renderSearchResultsPage() {
+    const resultCount = App.searchResults.length;
+    return `
+      <div class="min-h-screen bg-mesh pb-24">
+        <div class="px-6 pt-8 pb-4">
+          <!-- Header -->
+          <div class="flex items-center gap-3 mb-4">
+            <button onclick="navigateTo('search')" class="text-cc-muted hover:text-cc-text transition-colors">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+            <div>
+              <h1 class="text-lg font-semibold font-heading">Results</h1>
+              <p class="text-cc-muted text-xs">${resultCount} student${resultCount!==1?'s':''} found</p>
+            </div>
+          </div>
+
+          <!-- Results -->
+          ${resultCount > 0 ? `
+            <div>
+              ${App.searchResults.map(user => renderUserCard(user, true)).join('')}
+            </div>
+          ` : `
+            <div class="bg-cc-surface border border-cc-border rounded-2xl p-8 text-center mt-8">
+              <i class="fas fa-search text-4xl text-cc-muted/20 mb-3"></i>
+              <p class="text-cc-muted font-medium">No students found</p>
+              <p class="text-cc-muted/60 text-sm mt-1">Try adjusting your filters</p>
+              <button onclick="navigateTo('search')"
+                class="mt-4 px-6 py-2.5 rounded-xl text-sm font-medium bg-cc-elevated text-cc-text border border-cc-border hover:border-cc-accent transition-colors">
+                Modify Filters
+              </button>
+            </div>
+          `}
+        </div>
+
+        ${renderBottomNav('search')}
+      </div>
+    `;
+  }
+
+  // ---------- SAVED PROFILES PAGE ----------
+  function renderSavedPage() {
+    return `
+      <div class="min-h-screen bg-mesh pb-24">
+        <div class="px-6 pt-8 pb-4">
+          <h1 class="text-2xl font-bold font-heading mb-1">Saved Profiles</h1>
+          <p class="text-cc-muted text-sm mb-5">${App.savedUsersData.length} saved profile${App.savedUsersData.length!==1?'s':''}</p>
+
+          ${App.savedUsersData.length > 0 ? `
+            <div>
+              ${App.savedUsersData.map(user => renderUserCard(user, true)).join('')}
+            </div>
+          ` : `
+            <div class="bg-cc-surface border border-cc-border rounded-2xl p-8 text-center mt-4">
+              <i class="fas fa-bookmark text-4xl text-cc-muted/20 mb-3"></i>
+              <p class="text-cc-muted font-medium">No saved profiles</p>
+              <p class="text-cc-muted/60 text-sm mt-1">Search for students and save the ones you like</p>
+              <button onclick="navigateTo('search')"
+                class="mt-4 px-6 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-cc-accent to-amber-500 text-white hover:opacity-90 transition-opacity">
+                Find Students
+              </button>
+            </div>
+          `}
+        </div>
+
+        ${renderBottomNav('saved')}
+      </div>
+    `;
+  }
+
+  // ---------- CONTACT REQUESTS PAGE ----------
+  function renderRequestsPage() {
+    const received = App.contactRequests.filter(r => r.type === 'received');
+    const sent     = App.contactRequests.filter(r => r.type === 'sent');
+
+    return `
+      <div class="min-h-screen bg-mesh pb-24">
+        <div class="px-6 pt-8 pb-4">
+          <h1 class="text-2xl font-bold font-heading mb-1">Contact Requests</h1>
+          <p class="text-cc-muted text-sm mb-5">Manage your contact requests</p>
+
+          <!-- Received Requests -->
+          <div class="mb-6">
+            <h2 class="text-sm font-semibold text-cc-muted uppercase tracking-wider mb-3">
+              <i class="fas fa-inbox mr-1"></i> Received (${received.length})
+            </h2>
+            ${received.length > 0 ? received.map(r => {
+              const hue = r.fromUserName ? (r.fromUserName.charCodeAt(0)*7 + r.fromUserName.charCodeAt(r.fromUserName.length-1)*13) % 360 : 30;
+              return `
+                <div class="bg-cc-surface border border-cc-border rounded-2xl p-4 mb-3 fade-up">
+                  <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                         style="background: hsl(${hue}, 70%, 25%);">
+                      <span class="text-sm font-bold" style="color: hsl(${hue}, 80%, 70%);">
+                        ${r.fromUserName ? r.fromUserName.charAt(0).toUpperCase() : '?'}
+                      </span>
+                    </div>
+                    <div class="flex-1">
+                      <p class="font-semibold text-sm">${r.fromUserName}</p>
+                      <p class="text-xs text-cc-muted">${r.status === 'pending' ? 'Wants to connect with you' : r.status === 'accepted' ? 'Connected' : 'Declined'}</p>
+                    </div>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-medium
+                      ${r.status==='pending' ? 'bg-cc-yellow/10 text-cc-yellow' : r.status==='accepted' ? 'bg-cc-green/10 text-cc-green' : 'bg-cc-red/10 text-cc-red'}">
+                      ${r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                    </span>
+                  </div>
+                  ${r.status === 'pending' ? `
+                    <div class="flex gap-2">
+                      <button onclick="ContactModule.acceptRequest('${r.id}')"
+                        class="flex-1 py-2 rounded-xl text-sm font-medium bg-cc-teal/10 text-cc-teal border border-cc-teal/30 hover:bg-cc-teal/20 transition-all">
+                        Accept
+                      </button>
+                      <button onclick="ContactModule.declineRequest('${r.id}')"
+                        class="flex-1 py-2 rounded-xl text-sm font-medium bg-cc-elevated text-cc-muted border border-cc-border hover:text-cc-red transition-colors">
+                        Decline
+                      </button>
+                    </div>
+                  ` : ''}
+                  ${r.status === 'accepted' ? `
+                    <p class="text-xs text-cc-teal"><i class="fas fa-phone mr-1"></i> Your phone number is now visible to ${r.fromUserName}</p>
+                  ` : ''}
+                </div>
+              `;
+            }).join('') : `
+              <div class="bg-cc-surface border border-cc-border rounded-2xl p-5 text-center">
+                <p class="text-cc-muted text-sm">No received requests</p>
+              </div>
+            `}
+          </div>
+
+          <!-- Sent Requests -->
+          <div>
+            <h2 class="text-sm font-semibold text-cc-muted uppercase tracking-wider mb-3">
+              <i class="fas fa-paper-plane mr-1"></i> Sent (${sent.length})
+            </h2>
+            ${sent.length > 0 ? sent.map(r => {
+              const hue = r.toUserName ? (r.toUserName.charCodeAt(0)*7 + r.toUserName.charCodeAt(r.toUserName.length-1)*13) % 360 : 30;
+              return `
+                <div class="bg-cc-surface border border-cc-border rounded-2xl p-4 mb-3 fade-up">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                         style="background: hsl(${hue}, 70%, 25%);">
+                      <span class="text-sm font-bold" style="color: hsl(${hue}, 80%, 70%);">
+                        ${r.toUserName ? r.toUserName.charAt(0).toUpperCase() : '?'}
+                      </span>
+                    </div>
+                    <div class="flex-1">
+                      <p class="font-semibold text-sm">${r.toUserName}</p>
+                      <p class="text-xs text-cc-muted">${r.status === 'pending' ? 'Waiting for response' : r.status === 'accepted' ? 'Accepted — contact info visible!' : 'Declined'}</p>
+                    </div>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-medium
+                      ${r.status==='pending' ? 'bg-cc-yellow/10 text-cc-yellow' : r.status==='accepted' ? 'bg-cc-green/10 text-cc-green' : 'bg-cc-red/10 text-cc-red'}">
+                      ${r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                    </span>
+                  </div>
+                </div>
+              `;
+            }).join('') : `
+              <div class="bg-cc-surface border border-cc-border rounded-2xl p-5 text-center">
+                <p class="text-cc-muted text-sm">No sent requests</p>
+              </div>
+            `}
+          </div>
+        </div>
+
+        ${renderBottomNav('requests')}
+      </div>
+    `;
+  }
+
+  // ---------- MY PROFILE PAGE ----------
+  function renderProfilePage() {
+    const p = App.userProfile || {};
+    const hue = p.name ? (p.name.charCodeAt(0)*7 + p.name.charCodeAt(p.name.length-1)*13) % 360 : 30;
+
+    return `
+      <div class="min-h-screen bg-mesh pb-24">
+        <div class="px-6 pt-8 pb-4">
+          <h1 class="text-2xl font-bold font-heading mb-6">My Profile</h1>
+
+          <!-- Profile Card -->
+          <div class="bg-cc-surface border border-cc-border rounded-2xl p-6 text-center mb-6">
+            <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-3"
+                 style="background: linear-gradient(135deg, hsl(${hue},70%,25%), hsl(${(hue+60)%360},70%,25%));">
+              <span class="text-3xl font-bold" style="color: hsl(${hue},80%,70%);">
+                ${p.name ? p.name.charAt(0).toUpperCase() : '?'}
+              </span>
+            </div>
+            <h2 class="text-xl font-bold">${p.name || 'Unknown'}</h2>
+            <p class="text-cc-muted">${p.year} &middot; ${p.department} &middot; ${p.gender}</p>
+            <p class="text-cc-muted text-xs mt-1"><i class="fas fa-phone mr-1"></i> ${p.phone || 'N/A'}</p>
+          </div>
+
+          <!-- Interests -->
+          <div class="bg-cc-surface border border-cc-border rounded-2xl p-5 mb-4">
+            <h3 class="text-sm font-semibold text-cc-muted uppercase tracking-wider mb-3">My Interests</h3>
+            <div class="flex flex-wrap gap-1.5">
+              ${(p.interests || []).map(i =>
+                `<span class="text-xs bg-cc-accent/10 text-cc-accent px-2.5 py-1 rounded-full">${i}</span>`
+              ).join('')}
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <button onclick="App.editMode=true;navigateTo('profile-setup')"
+            class="w-full py-3.5 rounded-xl text-sm font-medium bg-cc-elevated text-cc-text border border-cc-border hover:border-cc-accent transition-colors mb-3">
+            <i class="fas fa-pen mr-2"></i> Edit Profile
+          </button>
+          <button onclick="handleLogout()"
+            class="w-full py-3.5 rounded-xl text-sm font-medium bg-cc-red/10 text-cc-red border border-cc-red/20 hover:bg-cc-red/20 transition-colors">
+            <i class="fas fa-right-from-bracket mr-2"></i> Logout
+          </button>
+        </div>
+
+        ${renderBottomNav('profile')}
+      </div>
+    `;
+  }
+
+  // ================================================================
+  //  13. RENDER — Main render dispatcher
+  // ================================================================
+  function render() {
+    const app = document.getElementById('app');
+
+    switch (App.currentPage) {
+      case 'loading':        app.innerHTML = renderLoadingPage(); break;
+      case 'login':          app.innerHTML = renderLoginPage(); break;
+      case 'otp':            app.innerHTML = renderOTPPage(); break;
+      case 'profile-setup':  app.innerHTML = renderProfileSetupPage(); break;
+      case 'home':           app.innerHTML = renderHomePage(); break;
+      case 'search':         app.innerHTML = renderSearchPage(); break;
+      case 'search-results': app.innerHTML = renderSearchResultsPage(); break;
+      case 'saved':          app.innerHTML = renderSavedPage(); break;
+      case 'requests':       app.innerHTML = renderRequestsPage(); break;
+      case 'profile':        app.innerHTML = renderProfilePage(); break;
+      default:               app.innerHTML = renderLoadingPage(); break;
+    }
+
+    // Show loading overlay if needed
+    if (App.isLoading) {
+      const overlay = document.createElement('div');
+      overlay.id = 'loading-overlay';
+      overlay.innerHTML = renderLoading();
+      document.body.appendChild(overlay);
+    } else {
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) overlay.remove();
+    }
+
+    // After-render setup (focus first OTP input, etc.)
+    requestAnimationFrame(() => {
+      if (App.currentPage === 'otp') {
+        const firstOtp = document.getElementById('otp-0');
+        if (firstOtp) firstOtp.focus();
+      }
+    });
+  }
+
+  // ================================================================
+  //  14. GLOBAL EVENT HANDLERS
+  //  These are called from onclick attributes in the HTML templates
+  // ================================================================
+
+  // -- Auth handlers --
+  function handleSendOTP() {
+    const phone = document.getElementById('phone-input');
+    if (phone) Auth.sendOTP(phone.value);
+  }
+
+  function handleVerifyOTP() {
+    const code = [0,1,2,3,4,5].map(i => {
+      const el = document.getElementById('otp-' + i);
+      return el ? el.value : '';
+    }).join('');
+    if (code.length !== 6) {
+      showToast('Please enter the complete 6-digit OTP', 'error');
+      return;
+    }
+    Auth.verifyOTP(code);
+  }
+
+  function handleResendOTP() {
+    const phone = document.getElementById('phone-input');
+    // Go back to login page to re-enter and resend
+    navigateTo('login');
+    showToast('Please send OTP again', 'info');
+  }
+
+  function handleLogout() {
+    if (confirm('Are you sure you want to logout?')) {
+      Auth.logout();
+    }
+  }
+
+  // -- OTP input handlers --
+  function handleOtpInput(index) {
+    const el = document.getElementById('otp-' + index);
+    if (!el) return;
+    // Only allow digits
+    el.value = el.value.replace(/\D/g, '');
+    // Auto-advance to next input
+    if (el.value && index < 5) {
+      const next = document.getElementById('otp-' + (index + 1));
+      if (next) next.focus();
+    }
+    // Auto-submit when all 6 digits entered
+    if (index === 5 && el.value) {
+      const code = [0,1,2,3,4,5].map(i => {
+        const inp = document.getElementById('otp-' + i);
+        return inp ? inp.value : '';
+      }).join('');
+      if (code.length === 6) {
+        handleVerifyOTP();
+      }
+    }
+  }
+
+  function handleOtpKeydown(event, index) {
+    // Move to previous input on backspace
+    if (event.key === 'Backspace' && index > 0) {
+      const el = document.getElementById('otp-' + index);
+      if (el && !el.value) {
+        const prev = document.getElementById('otp-' + (index - 1));
+        if (prev) { prev.focus(); prev.value = ''; }
+      }
+    }
+  }
+
+  // -- Profile setup handlers --
+  // Temporary storage for profile form selections
+  const profileFormState = { year: '', gender: '', interests: [] };
+
+  function selectYear(year) {
+    profileFormState.year = year;
+    // Update UI for year buttons
+    YEARS.forEach(y => {
+      const btn = document.getElementById('year-' + y);
+      if (btn) {
+        if (y === year) {
+          btn.className = btn.className.replace(/bg-cc-surface border-cc-border text-cc-muted hover:border-cc-accent/, 'bg-cc-accent/15 border-cc-accent text-cc-accent');
+        } else {
+          btn.className = btn.className.replace(/bg-cc-accent\/15 border-cc-accent text-cc-accent/, 'bg-cc-surface border-cc-border text-cc-muted hover:border-cc-accent');
+        }
+      }
+    });
+  }
+
+  function selectGender(gender) {
+    profileFormState.gender = gender;
+    GENDERS.forEach(g => {
+      const btn = document.getElementById('gender-' + g.replace(/\s/g, '-'));
+      if (btn) {
+        if (g === gender) {
+          btn.classList.add('bg-cc-accent/15', 'border-cc-accent', 'text-cc-accent');
+          btn.classList.remove('bg-cc-surface', 'border-cc-border', 'text-cc-muted');
+        } else {
+          btn.classList.remove('bg-cc-accent/15', 'border-cc-accent', 'text-cc-accent');
+          btn.classList.add('bg-cc-surface', 'border-cc-border', 'text-cc-muted');
+        }
+      }
+    });
+  }
+
+  function toggleInterest(el, interest) {
+    const idx = profileFormState.interests.indexOf(interest);
+    if (idx >= 0) {
+      profileFormState.interests.splice(idx, 1);
+      el.classList.remove('selected');
+    } else {
+      profileFormState.interests.push(interest);
+      el.classList.add('selected');
+    }
+  }
+
+  function handleProfileSubmit(isEdit) {
+    const name = document.getElementById('profile-name').value.trim();
+    const dept = document.getElementById('profile-dept').value;
+
+    const data = {
+      name:       name,
+      year:       profileFormState.year || (App.userProfile ? App.userProfile.year : ''),
+      department: dept,
+      gender:     profileFormState.gender || (App.userProfile ? App.userProfile.gender : ''),
+      interests:  profileFormState.interests.length > 0 ? [...profileFormState.interests] : (App.userProfile ? App.userProfile.interests : []),
+    };
+
+    if (isEdit) {
+      ProfileModule.update(data);
+    } else {
+      ProfileModule.create(data);
+    }
+  }
+
+  // -- Search filter handlers --
+  function toggleFilter(category, value) {
+    const arr = Filters[category];
+    const idx = arr.indexOf(value);
+    if (idx >= 0) {
+      arr.splice(idx, 1);
+    } else {
+      arr.push(value);
+    }
+    // Re-render just the search page to update chip styles
+    if (App.currentPage === 'search') {
+      render();
+    }
+  }
+
+  function clearFilterCategory(category) {
+    Filters[category] = [];
+    if (App.currentPage === 'search') render();
+  }
+
+  function clearAllFilters() {
+    Filters.year = [];
+    Filters.gender = [];
+    Filters.department = [];
+    Filters.interests = [];
+    if (App.currentPage === 'search') render();
+    showToast('All filters cleared', 'info');
+  }
+
+  // -- Save/Unsave handler --
+  function handleToggleSave(userId) {
+    if (SavedModule.isSaved(userId)) {
+      SavedModule.unsave(userId);
+    } else {
+      SavedModule.save(userId);
+    }
+  }
+
+  // -- Contact request handler --
+  function handleRequestContact(userId, userName) {
+    ContactModule.sendRequest(userId, userName);
+  }
+
+  // ================================================================
+  //  15. APP INITIALIZATION
+  // ================================================================
+
+  // Initialize profile form state from existing profile (for edit mode)
+  function initProfileFormState() {
+    if (App.userProfile) {
+      profileFormState.year = App.userProfile.year || '';
+      profileFormState.gender = App.userProfile.gender || '';
+      profileFormState.interests = App.userProfile.interests ? [...App.userProfile.interests] : [];
+    }
+  }
+
+  // Override navigateTo to also init form state when entering profile-setup
+  const originalNavigateTo = navigateTo;
+  navigateTo = function(page) {
+    if (page === 'profile-setup') {
+      initProfileFormState();
+    }
+    App.currentPage = page;
+    render();
+  };
+
+  // Start the app — show loading screen until auth state resolves
+  render();
+  </script>
+</body>
+</html>
